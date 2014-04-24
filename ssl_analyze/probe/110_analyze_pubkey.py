@@ -7,7 +7,8 @@ class AnalyzePubKey(Probe):
     def setup(self):
         self.config = CONFIG.get('analyze', {}).get('public_key', {})
 
-    def probe(self, address, certificate, public_key):
+    def probe(self, address, certificates):
+        public_key = certificates[0].get_public_key()
         key_info = dict()
         warnings = defaultdict(list)
         errors   = defaultdict(list)

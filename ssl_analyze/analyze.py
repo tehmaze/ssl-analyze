@@ -17,14 +17,14 @@ class Analyzer(object):
         '''Analyze a single certificate.'''
 
         info = {}
-        substrate = parse_pem(data.splitlines(), 'CERTIFICATE')
-        certificate, public_key = parse_certificate(substrate)
+        certificates = map(parse_certificate,
+                           parse_pem(data.splitlines(), 'CERTIFICATE'))
 
         for Probe in self.probes:
             print('Running {!r}'.format(Probe))
             try:
                 probe = Probe(info)
-                probe.probe(None, certificate, public_key)
+                probe.probe(None, certificates)
                 probe.merge(dict(tests=[repr(Probe)]))
             except Exception, e:
                 print('Oops: {}'.format(e))

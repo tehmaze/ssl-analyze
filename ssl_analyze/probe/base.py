@@ -58,7 +58,7 @@ class Probe(object):
     def setup(self):
         pass
 
-    def probe(self, address, certificate, public_key):
+    def probe(self, address, certificates):
         return self.merge({})
 
     def warning(self, category, message):

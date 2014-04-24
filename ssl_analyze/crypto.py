@@ -25,6 +25,7 @@ def hash_name(name):
 
 
 def parse_pem(obj, marker):
+    '''Retrieve all maching data blocks in a PEM formatted file.'''
     keep = 0
     begin_marker = '-----BEGIN {}-----'.format(marker.upper())
     end_marker = '-----END {}-----'.format(marker.upper())
@@ -32,14 +33,14 @@ def parse_pem(obj, marker):
     for line in obj:
         if keep:
             if line == end_marker:
-                break
+                yield ''.join(data).decode('base64')
+                data = []
+                keep = 0
             else:
                 data.append(line)
 
         elif line == begin_marker:
             keep = 1
-
-    return ''.join(data).decode('base64')
 
 
 def parse_certificate(substrate):
@@ -49,11 +50,7 @@ def parse_certificate(substrate):
     )
     assert not leftover
 
-    tbsCertificate = decoded['tbsCertificate']
-    subjectPublicKeyInfo = tbsCertificate['subjectPublicKeyInfo']
-    certificate = Certificate(decoded)
-    public_key = PublicKey(subjectPublicKeyInfo)
-    return certificate, public_key
+    return Certificate(decoded)
 
 
 class Sequence(object):
@@ -114,6 +111,11 @@ class Certificate(Sequence):
         return asn1_to_python(
             self.sequence['tbsCertificate']['validity']['notBefore']
         )
+
+    def get_public_key(self):
+        tbsCertificate = self.sequence['tbsCertificate']
+        subjectPublicKeyInfo = tbsCertificate['subjectPublicKeyInfo']
+        return PublicKey(subjectPublicKeyInfo)
 
     def get_serial_number(self):
         return asn1_to_python(
