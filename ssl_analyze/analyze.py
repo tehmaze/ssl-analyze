@@ -3,7 +3,6 @@ import sys
 
 from pyasn1.type import univ
 from pyasn1.codec.der import decoder as der_decoder
-import OpenSSL.crypto
 
 from ssl_analyze.crypto import parse_pem, parse_certificate
 from ssl_analyze.probe.loader import load_probes

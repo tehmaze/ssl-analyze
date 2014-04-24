@@ -1,8 +1,6 @@
 from collections import OrderedDict
 import datetime
 
-import OpenSSL.crypto
-from OpenSSL.crypto import dump_privatekey, FILETYPE_PEM
 from pyasn1.codec.der import decoder as der_decoder
 from pyasn1.type import char, univ
 
