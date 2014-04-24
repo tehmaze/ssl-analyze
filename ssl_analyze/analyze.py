@@ -43,7 +43,11 @@ class Analyzer(object):
 
     def _json_handler(self, obj):
         if hasattr(obj, 'isoformat'):
-            return obj.isoformat()  # for datetime.* objects
+            # for datetime.* objects
+            return obj.isoformat()
+        elif hasattr(obj, 'seconds') and hasattr(obj, 'microseconds'):
+            # for datetime.timedelta objects
+            return obj.seconds + (obj.microseconds / 1000000.0)
         elif isinstance(obj, univ.ObjectIdentifier):
             return str(obj)
         else:
