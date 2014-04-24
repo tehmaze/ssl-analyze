@@ -1,0 +1,12 @@
+analyze:
+  public_key:
+    key_sizes:
+      DSA:
+        bits: 2048
+        docs: DSA is deprecated
+      RSA:
+        bits: 2048
+        docs: As recommended by [NIST 800-57](http://csrc.nist.gov/publications/PubsSPs.html)
+      ECDSA:
+        bits: 112
+        docs: As recommended by [RFC4492](http://tools.ietf.org/html/rfc4492)
