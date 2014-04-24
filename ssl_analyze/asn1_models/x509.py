@@ -407,7 +407,7 @@ class Certificate(univ.Sequence):
     componentType = namedtype.NamedTypes(
         namedtype.NamedType('tbsCertificate', TBSCertificate()),
         namedtype.NamedType('signatureAlgorithm', AlgorithmIdentifier()),
-        namedtype.NamedType('signatureValue', univ.BitString())
+        namedtype.NamedType('signatureValue', ConvertableBitString()),
     )
 
 

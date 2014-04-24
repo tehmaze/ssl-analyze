@@ -9,12 +9,12 @@ class AnalyzePubKey(Probe):
 
     def probe(self, address, certificates):
         key_infos = []
+        warnings  = defaultdict(list)
+        errors    = defaultdict(list)
 
         for certificate in certificates:
             public_key = certificate.get_public_key()
             key_info = dict()
-            warnings = defaultdict(list)
-            errors   = defaultdict(list)
 
             key_bits = public_key.get_bits()
             key_type = public_key.get_type()

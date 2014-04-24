@@ -10,15 +10,19 @@ class BasicInfo(Probe):
             cert_info = dict(
                 data             = certificate.to_pem(),
                 extensions       = {},
+                extension_count  = certificate.get_extension_count(),
                 issuer           = certificate.get_issuer(),
                 issuer_hash      = certificate.get_issuer_hash(),
                 issuer_hash_old  = certificate.get_issuer_hash_old(),
+                issuer_str       = certificate.get_issuer_str(),
                 not_after        = certificate.get_not_after(),
                 not_before       = certificate.get_not_before(),
                 serial           = certificate.get_serial_number(),
+                signature        = certificate.get_signature().encode('hex'),
                 subject          = certificate.get_subject(),
                 subject_hash     = certificate.get_subject_hash(),
                 subject_hash_old = certificate.get_subject_hash_old(),
+                subject_str      = certificate.get_subject_str(),
             )
             public_key = certificate.get_public_key()
             cert_info['public_key'] = public_key.get_info()

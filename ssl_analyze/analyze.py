@@ -4,27 +4,30 @@ import sys
 from pyasn1.type import univ
 from pyasn1.codec.der import decoder as der_decoder
 
+from ssl_analyze.config import CONFIG
 from ssl_analyze.crypto import parse_pem, parse_certificate
 from ssl_analyze.probe.loader import load_probes
+from ssl_analyze.trust import TRUST_STORE
+from ssl_analyze.util import OrderedSet
 
 
 class Analyzer(object):
     def __init__(self):
+        self.config = CONFIG
         self.probes = load_probes()
+        self.load_trust()
 
-    def analyze_certificate(self, data, **kwargs):
-        '''Analyze a single certificate.'''
+    def analyze(self, address, certificates):
+        if not isinstance(certificates, OrderedSet):
+            certificates = OrderedSet(certificates)
 
-        info = {}
-        certificates = map(parse_certificate,
-                           parse_pem(data.splitlines(), 'CERTIFICATE'))
-
+        info = {'tests': []}
         for Probe in self.probes:
             print('Running {!r}'.format(Probe))
             try:
                 probe = Probe(info)
-                probe.probe(None, certificates)
-                probe.merge(dict(tests=[repr(Probe)]))
+                probe.probe(address, certificates)
+                info['tests'].append(Probe.__module__)
             except Exception, e:
                 print('Oops: {}'.format(e))
                 raise
@@ -36,9 +39,18 @@ class Analyzer(object):
                 indent=2,
                 sort_keys=True,
             )
-        except UnicodeDecodeError:
+        except Exception:
             import pprint
             print pprint.pprint(info)
+
+    def analyze_certificate(self, data, **kwargs):
+        certificates = map(parse_certificate,
+                           parse_pem(data.splitlines(), 'CERTIFICATE'))
+
+        self.analyze(None, certificates)
+
+    def analyze_tcp(self, address):
+        self.analyze(address, [])
 
     def _json_handler(self, obj):
         if hasattr(obj, 'isoformat'):
@@ -55,3 +67,25 @@ class Analyzer(object):
                     type(obj), repr(obj)
                 )
             )
+
+    def load_trust(self):
+        try:
+            ca_dir = self.config['trust']['ca_dir']
+        except KeyError:
+            pass
+        else:
+            TRUST_STORE.add_trust_from_ca_dir(ca_dir)
+
+        try:
+            ca_file = self.config['trust']['ca_file']
+        except KeyError:
+            pass
+        else:
+            TRUST_STORE.add_trust_from_ca_file(ca_file)
+
+        try:
+            certdata = self.config['trust']['certdata']
+        except KeyError:
+            pass
+        else:
+            TRUST_STORE.add_trust_from_certdata(certdata)

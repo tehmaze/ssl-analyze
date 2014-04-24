@@ -1,4 +1,5 @@
 analyze:
+  certificate:
   public_key:
     key_sizes:
       DSA:
@@ -10,3 +11,8 @@ analyze:
       ECDSA:
         bits: 112
         docs: As recommended by [RFC4492](http://tools.ietf.org/html/rfc4492)
+
+trust:
+  ca_dir:   data/cacerts
+  #ca_file:  data/ca-bundle.crt
+  #certdata: data/certdata.txt

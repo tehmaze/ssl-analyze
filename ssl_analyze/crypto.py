@@ -3,6 +3,7 @@ import warnings
 
 from pyasn1.codec.der import decoder as der_decoder
 from pyasn1.codec.der import encoder as der_encoder
+from pyasn1.error import PyAsn1Error
 from pyasn1.type import univ
 
 from ssl_analyze.asn1_models import dsa, rsa, x509
@@ -31,6 +32,7 @@ def parse_pem(obj, marker):
     end_marker = '-----END {}-----'.format(marker.upper())
     data = []
     for line in obj:
+        line = line.rstrip()
         if keep:
             if line == end_marker:
                 yield ''.join(data).decode('base64')
@@ -74,25 +76,30 @@ class Sequence(object):
 class Certificate(Sequence):
     spec = x509.Certificate()
 
+    def __init__(self, sequence):
+        super(Certificate, self).__init__(sequence)
+        self.tbsCertificate = self.sequence.getComponentByName('tbsCertificate')
+        self.validity = self.tbsCertificate.getComponentByName('validity')
+
     def get_extension(self, index):
         return Extension(
             self.sequence['tbsCertificate']['extensions'][index]
         )
 
     def get_extension_count(self):
-        if 'extensions' in self.sequence['tbsCertificate']:
-            return len(self.sequence['tbsCertificate']['extensions'])
-        else:
+        try:
+            return len(self.tbsCertificate.getComponentByName('extensions'))
+        except PyAsn1Error:
             return 0
 
     def get_issuer(self):
         return asn1_to_python(
-            self.sequence['tbsCertificate']['issuer']
+            self.tbsCertificate.getComponentByName('issuer')
         )
 
     def get_issuer_der(self):
         return der_encoder.encode(
-            self.sequence['tbsCertificate']['issuer']
+            self.tbsCertificate.getComponentByName('issuer')
         )
 
     def get_issuer_hash(self):
@@ -102,24 +109,28 @@ class Certificate(Sequence):
     def get_issuer_hash_old(self):
         return hashlib.md5(self.get_issuer_der()).hexdigest()
 
+    def get_issuer_str(self):
+        return '/'.join('='.join([k, v])
+                        for k, v in self.get_issuer().iteritems())
+
     def get_not_after(self):
         return asn1_to_python(
-            self.sequence['tbsCertificate']['validity']['notAfter']
+            self.validity.getComponentByName('notAfter')
         )
 
     def get_not_before(self):
         return asn1_to_python(
-            self.sequence['tbsCertificate']['validity']['notBefore']
+            self.validity.getComponentByName('notBefore')
         )
 
     def get_public_key(self):
-        tbsCertificate = self.sequence['tbsCertificate']
-        subjectPublicKeyInfo = tbsCertificate['subjectPublicKeyInfo']
-        return PublicKey(subjectPublicKeyInfo)
+        return PublicKey(
+            self.tbsCertificate.getComponentByName('subjectPublicKeyInfo')
+        )
 
     def get_serial_number(self):
         return asn1_to_python(
-            self.sequence['tbsCertificate']['serialNumber']
+            self.tbsCertificate.getComponentByName('serialNumber')
         )
 
     def get_signature(self):
@@ -127,17 +138,17 @@ class Certificate(Sequence):
 
     def get_signature_algorithm(self):
         return asn1_to_python(
-            self.sequence['signatureAlgorithm']
+            self.sequence.getComponentByName('signatureAlgorithm')
         )
 
     def get_subject(self):
         return asn1_to_python(
-            self.sequence['tbsCertificate']['subject']
+            self.tbsCertificate.getComponentByName('subject')
         )
 
     def get_subject_der(self):
         return der_encoder.encode(
-            self.sequence['tbsCertificate']['subject']
+            self.tbsCertificate.getComponentByName('subject')
         )
 
     def get_subject_hash(self):
@@ -146,6 +157,10 @@ class Certificate(Sequence):
 
     def get_subject_hash_old(self):
         return hashlib.md5(self.get_subject_der()).hexdigest()
+
+    def get_subject_str(self):
+        return '/'.join('='.join([k, v])
+                        for k, v in self.get_subject().iteritems())
 
 
 class PublicKey(Sequence):
@@ -220,11 +235,11 @@ class Extension(Sequence):
         authorityKeyIdentifier = x509.AuthorityKeyIdentifier(),
         basicConstraints       = x509.BasicConstraints(),
         certificatePolicies    = x509.CertificatePolicies(),
-        crlDistributionPoints  = x509.CRLDistributionPoints(),
-        extendedKeyUsage       = x509.ExtKeyUsageSyntax(),
-        issuerAlternativeName  = x509.IssuerAltName(),
+        cRLDistributionPoints  = x509.CRLDistributionPoints(),
+        extKeyUsage            = x509.ExtKeyUsageSyntax(),
+        issuerAltName          = x509.IssuerAltName(),
         keyUsage               = x509.KeyUsage(),
-        subjectAlternativeName = x509.SubjectAltName(),
+        subjectAltName         = x509.SubjectAltName(),
         subjectKeyIdentifier   = x509.SubjectKeyIdentifier(),
     )
 
@@ -271,16 +286,16 @@ class Extension(Sequence):
         elif self.name == 'basicConstraints':
             return dict(
                 ca=bool(self.decoded.getComponentByName('cA')),
-                path_len=self.decoded.getComponentByName('pathLenConstraint'),
+                path_len=self.decoded.getComponentByName('pathLenConstraint')._value,
             )
 
         elif self.name == 'certificatePolicies':
             return map(asn1_to_python, self.decoded)
 
-        elif self.name == 'crlDistributionPoints':
+        elif self.name == 'cRLDistributionPoints':
             return map(asn1_to_python, self.decoded)
 
-        elif self.name == 'extendedKeyUsage':
+        elif self.name == 'extKeyUsage':
             return map(asn1_to_python, self.decoded)
 
         elif self.name == 'issuerAltName':
