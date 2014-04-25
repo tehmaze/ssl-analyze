@@ -1281,7 +1281,7 @@ OID_FRIENDLY = dict((OID(k), v) for k, v in (
     ('1.3.6.1.4.1.3029.4.1.5',           'rtcsResponse'),
     ('1.3.6.1.4.1.3029.4.1.6',           'rtcsResponseExt'),
     ('1.3.6.1.4.1.3029.42.11172.1',      'mpeg-1'),
-    ('1.3.6.1.4.1.3029.54.11940.54',     'TSA policy "Anything that arrives, we sign"'),
+    ('1.3.6.1.4.1.3029.54.11940.54',     'TSApolicy'),
     ('1.3.6.1.4.1.3029.88.89.90.90.89',  'xYZZY policyIdentifier'),
     ('1.3.6.1.4.1.311.10.1',             'certTrustList'),
     ('1.3.6.1.4.1.311.10.1.1',           'sortedCtl'),
@@ -2135,6 +2135,20 @@ OID_FRIENDLY = dict((OID(k), v) for k, v in (
     ('2.54.1775.99',                     'setData'),
 ))
 
+OID_FRIENDLY_SHORT = dict(
+    commonName             = 'CN',
+    countryName            = 'C',
+    domainComponent        = 'DC',
+    organizationName       = 'O',
+    organizationalUnitName = 'OU',
+    stateOrProvinceName    = 'ST',
+    streetAddress          = 'STREET',
+    userID                 = 'UID',
+)
 
-def friendly_oid(identifier):
-    return OID_FRIENDLY.get(identifier, str(identifier))
+def friendly_oid(identifier, short=False):
+    friendly = OID_FRIENDLY.get(identifier, str(identifier))
+    if short:
+        return OID_FRIENDLY_SHORT.get(friendly, friendly)
+    else:
+        return friendly

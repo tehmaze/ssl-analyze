@@ -110,8 +110,7 @@ class Certificate(Sequence):
         return hashlib.md5(self.get_issuer_der()).hexdigest()
 
     def get_issuer_str(self):
-        return '/'.join('='.join([k, v])
-                        for k, v in self.get_issuer().iteritems())
+        return self.tbsCertificate.getComponentByName('issuer').to_rfc2253()
 
     def get_not_after(self):
         return asn1_to_python(
@@ -159,8 +158,7 @@ class Certificate(Sequence):
         return hashlib.md5(self.get_subject_der()).hexdigest()
 
     def get_subject_str(self):
-        return '/'.join('='.join([k, v])
-                        for k, v in self.get_subject().iteritems())
+        return self.tbsCertificate.getComponentByName('subject').to_rfc2253()
 
 
 class PublicKey(Sequence):

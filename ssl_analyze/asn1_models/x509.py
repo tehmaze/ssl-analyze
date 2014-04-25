@@ -9,6 +9,7 @@ from pyasn1.type import (
 )
 
 from ssl_analyze.asn1_models.generic import ConvertableBitString
+from ssl_analyze.oids import friendly_oid
 
 # "*sigh* this ASN.1 parsing is impossible! Although the ASN.1 specifications
 # have been very well defined in RFCs" "No it's not, check out pyasn1, they
@@ -278,11 +279,13 @@ class DirectoryString(univ.Choice):
 
 
 class AttributeValue(DirectoryString):
-    pass
+    def to_rfc2253(self):
+        return self.getComponent()._value
 
 
 class AttributeType(univ.ObjectIdentifier):
-    pass
+    def to_rfc2253(self):
+        return friendly_oid(self, short=True)
 
 
 class AttributeTypeAndValue(univ.Sequence):
@@ -290,6 +293,12 @@ class AttributeTypeAndValue(univ.Sequence):
         namedtype.NamedType('type', AttributeType()),
         namedtype.NamedType('value', AttributeValue()),
     )
+
+    def to_rfc2253(self):
+        return '='.join([
+            self.getComponentByName('type').to_rfc2253(),
+            self.getComponentByName('value').to_rfc2253(),
+        ])
 
 
 class Attribute(univ.Sequence):
@@ -311,6 +320,16 @@ class Name(univ.Choice):
     componentType = namedtype.NamedTypes(
         namedtype.NamedType('', RDNSequence())
     )
+
+    def to_rfc2253(self):
+        name = []
+        rdn  = self[0]  # RelativeDistinguishedName
+
+        for obj in rdn:
+            atv = obj[0]  # AttributeTypeAndValue
+            name.append(atv.to_rfc2253())
+
+        return '/'.join(name)
 
 
 class AlgorithmIdentifier(univ.Sequence):
