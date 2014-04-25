@@ -21,7 +21,7 @@ from ssl_analyze.asn1_models.generic import ConvertableBitString
 #             Certificate Revocation List (CRL) Profile
 
 # Upper bounds
-MAX                                      = 64
+MAX                                      = 128
 ub_name                                  = univ.Integer(32768)
 ub_common_name                           = univ.Integer(64)
 ub_locality_name                         = univ.Integer(128)
