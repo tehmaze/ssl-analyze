@@ -12,8 +12,7 @@ class RetrieveCertificate(Probe):
     def probe(self, address, certificates):
         if not address:
             # Nothing to do
-            log.debug('Nothing to do, no address provided')
-            return
+            raise Probe.Skip('Offline; no address supplied')
         else:
             log.info('Fetching certificate from %s:%d' % address)
 

@@ -6,7 +6,7 @@ from ssl_analyze.trust import TRUST_STORE
 class AnalyzeCertificate(Probe):
     def probe(self, address, certificates):
         cert_infos = []
-        trusted_issuers = []
+        trusted_issuers = {}
 
         # We walk the certificate chain in reverse order
         for i, certificate in enumerate(reversed(certificates)):
@@ -64,7 +64,7 @@ class AnalyzeCertificate(Probe):
                     basic = certificate.extensions.get('basicConstraints', {})
                     is_ca = basic.get('ca', False)
                     if is_ca:
-                        trusted_issuers.append(certificate.get_subject_hash())
+                        trusted_issuers[certificate.get_subject_hash()] = certificate
 
                 elif issuer_hash in trusted_issuers:
                     if trusted_issuers[issuer_hash].verify(certificate):

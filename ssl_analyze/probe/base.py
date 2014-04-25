@@ -4,7 +4,13 @@ import os
 from ssl_analyze.util import merge
 
 
+class Skip(Exception):
+    pass
+
+
 class Probe(object):
+    Skip = Skip
+
     def __init__(self, collected):
         self.collected = collected
 

@@ -5,6 +5,16 @@ from pyasn1.codec.der import decoder as der_decoder
 from pyasn1.codec.der import encoder as der_encoder
 from pyasn1.error import PyAsn1Error
 from pyasn1.type import univ
+from Crypto.Util import asn1
+from OpenSSL.crypto import (
+    dump_certificate,
+    load_certificate,
+    FILETYPE_ASN1,
+    FILETYPE_PEM,
+    verify,
+)
+from OpenSSL.crypto import Error as SSLError
+from OpenSSL.crypto import verify as SSLVerify
 
 from ssl_analyze.asn1_models import (
     dsa,
@@ -70,6 +80,9 @@ class Sequence(object):
         else:
             self.sequence = sequence
 
+    def to_der(self):
+        return der_encoder.encode(self.sequence)
+
     def to_pem(self, name=None):
         name = name or self.__class__.__name__.upper()
         data = []
@@ -87,6 +100,9 @@ class Certificate(Sequence):
         self.tbsCertificate = self.sequence.getComponentByName('tbsCertificate')
         self.validity = self.tbsCertificate.getComponentByName('validity')
         self.extensions = self.get_extensions()
+
+    def get_certificate_der(self):
+        return der_encoder.encode(self.tbsCertificate)
 
     def get_extension(self, index):
         return Extension(
@@ -150,6 +166,11 @@ class Certificate(Sequence):
         algorithm = signature['algorithm']
         return friendly_oid(algorithm)
 
+    def get_signature_der(self):
+        return der_encoder.encode(
+            self.sequence.getComponentByName('signatureValue')
+        )
+
     def get_subject(self):
         return self.tbsCertificate.getComponentByName('subject').to_python()
 
@@ -166,6 +187,21 @@ class Certificate(Sequence):
 
     def get_subject_str(self):
         return self.tbsCertificate.getComponentByName('subject').to_rfc2253()
+
+    def verify(self, certificate):
+        '''Meh it sucks having to load OpenSSL; but it's the fastest option.'''
+        vrfy = load_certificate(FILETYPE_ASN1, self.to_der())
+        try:
+            SSLVerify(
+                vrfy,
+                certificate.get_signature(),
+                certificate.get_certificate_der(),
+                certificate.get_signature_algorithm(),
+            )
+        except SSLError:
+            return False
+        else:
+            return True
 
 
 class PublicKey(Sequence):
@@ -267,12 +303,20 @@ class Extension(Sequence):
             warnings.warn('Not able to decode extension {}'.format(self.name))
             self.decoded = None
 
+        self.parsed = self.to_python()
+
+    def get(self, key, default=None):
+        return self.parsed.get(key, default)
+
     def to_python(self):
-        if self.decoded is None:
-            return None
+        if hasattr(self, 'parsed'):
+            return self.parsed
         else:
-            try:
-                return self.decoded.to_python()
-            except AttributeError, e:
-                log.error('Oops: {}'.format(e))
+            if self.decoded is None:
                 return None
+            else:
+                try:
+                    return self.decoded.to_python()
+                except AttributeError, e:
+                    log.error('Oops: {}'.format(e))
+                    return None

@@ -27,13 +27,16 @@ class Analyzer(object):
         if not isinstance(certificates, OrderedSet):
             certificates = OrderedSet(certificates)
 
-        info = {'tests': []}
+        info = {'tests': [], 'tests_skipped': []}
         for Probe in self.probes:
             log.debug('Running {}'.format(Probe.__module__))
             try:
                 probe = Probe(info)
                 probe.probe(address, certificates)
                 info['tests'].append(Probe.__module__)
+            except Probe.Skip, r:
+                log.warning('Skip {}: {}'.format(Probe.__module__, r))
+                info['tests_skipped'].append(Probe.__module__)
             except Exception, e:
                 print('Oops: {}'.format(e))
                 raise
