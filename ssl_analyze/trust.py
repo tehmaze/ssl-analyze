@@ -2,6 +2,7 @@ import os
 import re
 
 from ssl_analyze.crypto import parse_certificate, parse_pem
+from ssl_analyze.log import log
 
 
 RE_CKA_LABEL_UTF8            = re.compile(r'^CKA_LABEL UTF8 "(.*)"')
@@ -15,12 +16,15 @@ class TrustStore(dict):
     def add_trust(self, substrate):
         certificate = parse_certificate(substrate)
         self[certificate.get_subject_hash()] = certificate
-        print('Added {}'.format(certificate.get_subject_str()))
+        log.info('Added {}'.format(certificate.get_subject_str()))
 
     def add_trust_from_ca_dir(self, directory):
         for filename in os.listdir(directory):
             path = os.path.join(directory, filename)
-            self.add_trust_from_ca_file(path)
+            while os.path.islink(path):
+                path = os.readlink(path)
+            if os.path.isfile(path):
+                self.add_trust_from_ca_file(path)
 
     def add_trust_from_ca_file(self, filename):
         for substrate in parse_pem(file(filename), 'CERTIFICATE'):

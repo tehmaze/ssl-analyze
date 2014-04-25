@@ -40,8 +40,6 @@ class Probe(object):
         assert isinstance(collected, dict), [collected, base]
         assert isinstance(base, dict), base
 
-        print 'merge', base, collected
-
         for key in collected:
             if key in base:
                 if isinstance(base[key], (list, tuple, set)):

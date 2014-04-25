@@ -6,16 +6,22 @@ from pyasn1.codec.der import decoder as der_decoder
 
 from ssl_analyze.config import CONFIG
 from ssl_analyze.crypto import parse_pem, parse_certificate
+from ssl_analyze.log import log
 from ssl_analyze.probe.loader import load_probes
 from ssl_analyze.trust import TRUST_STORE
 from ssl_analyze.util import OrderedSet
 
 
 class Analyzer(object):
-    def __init__(self):
+    def __init__(self, options):
         self.config = CONFIG
         self.probes = load_probes()
         self.load_trust()
+
+        if options.CAdir:
+            TRUST_STORE.add_trust_from_ca_dir(options.CAdir)
+        if options.CAfile:
+            TRUST_STORE.add_trust_from_ca_file(options.CAfile)
 
     def analyze(self, address, certificates):
         if not isinstance(certificates, OrderedSet):
@@ -23,7 +29,7 @@ class Analyzer(object):
 
         info = {'tests': []}
         for Probe in self.probes:
-            print('Running {!r}'.format(Probe))
+            log.debug('Running {}'.format(Probe.__module__))
             try:
                 probe = Probe(info)
                 probe.probe(address, certificates)

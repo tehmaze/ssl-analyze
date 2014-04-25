@@ -1,3 +1,4 @@
+from ssl_analyze.log import log
 from ssl_analyze.probe.base import Probe
 from ssl_analyze.trust import TRUST_STORE
 
@@ -9,6 +10,8 @@ class AnalyzeCertificate(Probe):
 
         # We walk the certificate chain in reverse order
         for i, certificate in enumerate(reversed(certificates)):
+            log.debug('Analyzing {}'.format(certificate.get_subject_str()))
+
             cert_info = dict()
 
             # If this is a self-signed certificate, skip all the other checks
@@ -46,19 +49,34 @@ class AnalyzeCertificate(Probe):
                     )
 
                 elif issuer_hash in TRUST_STORE:
-                    cert_info['trust'] = dict(
-                        status='good',
-                        reason='In trust store',
-                    )
+                    if TRUST_STORE[issuer_hash].verify(certificate):
+                        cert_info['trust'] = dict(
+                            status='good',
+                            reason='In trust store',
+                        )
+                    else:
+                        cert_info['trust'] = dict(
+                            status='error',
+                            reason='Certificate not signed by issuer',
+                        )
 
                     # TODO test if CA
-                    trusted_issuers.append(certificate.get_subject_hash())
+                    basic = certificate.extensions.get('basicConstraints', {})
+                    is_ca = basic.get('ca', False)
+                    if is_ca:
+                        trusted_issuers.append(certificate.get_subject_hash())
 
                 elif issuer_hash in trusted_issuers:
-                    cert_info['trust'] = dict(
-                        status='good',
-                        reason='Sent by server',
-                    )
+                    if trusted_issuers[issuer_hash].verify(certificate):
+                        cert_info['trust'] = dict(
+                            status='good',
+                            reason='Sent by server',
+                        )
+                    else:
+                        cert_info['trust'] = dict(
+                            status='error',
+                            reason='Certificate not signed by issuer',
+                        )
 
                 else:
                     cert_info['trust'] = dict(

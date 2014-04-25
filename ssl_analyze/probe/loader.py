@@ -6,7 +6,8 @@ import itertools
 import os
 import sys
 
-import ssl_analyze.probe.base
+from ssl_analyze.log import log
+from ssl_analyze.probe import base
 
 
 PROBES = dict()
@@ -20,7 +21,7 @@ def load_probe(filename):
         os.path.basename(os.path.splitext(filename)[0]),
     ])
 
-    print('Loading {} from {}'.format(name, filename))
+    log.debug('Loading {}'.format(name))
     try:
         module = imp.load_module(
             name,
@@ -30,7 +31,7 @@ def load_probe(filename):
         )
         PROBES[name] = getattr(module, 'PROBES', [])
     except Exception, e:
-        print('Loading {} failed "{}"'.format(name, e))
+        log.warning('Loading {} failed "{}"'.format(name, e))
 
 
 def load_probes(path=None):

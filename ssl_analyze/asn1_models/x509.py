@@ -10,6 +10,7 @@ from pyasn1.type import (
 
 from ssl_analyze.asn1_models.generic import ConvertableBitString
 from ssl_analyze.oids import friendly_oid
+from ssl_analyze.parser import extension, generic
 
 # "*sigh* this ASN.1 parsing is impossible! Although the ASN.1 specifications
 # have been very well defined in RFCs" "No it's not, check out pyasn1, they
@@ -276,6 +277,7 @@ class DirectoryString(univ.Choice):
             )
         ) # hm, this should not be here!? XXX
     )
+    to_python = generic.parse_directory_string
 
 
 class AttributeValue(DirectoryString):
@@ -284,6 +286,8 @@ class AttributeValue(DirectoryString):
 
 
 class AttributeType(univ.ObjectIdentifier):
+    to_python = friendly_oid
+
     def to_rfc2253(self):
         return friendly_oid(self, short=True)
 
@@ -293,6 +297,14 @@ class AttributeTypeAndValue(univ.Sequence):
         namedtype.NamedType('type', AttributeType()),
         namedtype.NamedType('value', AttributeValue()),
     )
+
+    def to_python(self):
+        atype = self.getComponentByName('type')
+        value = self.getComponentByName('value')
+        if atype:
+            return {atype.to_python(): value.to_python()}
+        else:
+            return {}
 
     def to_rfc2253(self):
         return '='.join([
@@ -311,15 +323,20 @@ class Attribute(univ.Sequence):
 class RelativeDistinguishedName(univ.SetOf):
     componentType = AttributeTypeAndValue()
 
+    def to_python(self):
+        return self.componentType.to_python()
+
 
 class RDNSequence(univ.SequenceOf):
     componentType = RelativeDistinguishedName()
+    to_python = generic.parse_sequence_dict
 
 
 class Name(univ.Choice):
     componentType = namedtype.NamedTypes(
         namedtype.NamedType('', RDNSequence())
     )
+    to_python = generic.parse_choice
 
     def to_rfc2253(self):
         name = []
@@ -368,6 +385,7 @@ class Time(univ.Choice):
         namedtype.NamedType('utcTime', useful.UTCTime()),
         namedtype.NamedType('generalTime', useful.GeneralizedTime())
     )
+    to_python = generic.parse_time
 
 
 class Validity(univ.Sequence):
@@ -377,8 +395,15 @@ class Validity(univ.Sequence):
     )
 
 
+class OptionalValidity(univ.Sequence):
+    componentType = namedtype.NamedTypes(
+        namedtype.OptionalNamedType('notBefore', Time()),
+        namedtype.OptionalNamedType('notAfter', Time())
+    )
+
+
 class CertificateSerialNumber(univ.Integer):
-    pass
+    to_python = lambda self: self._value
 
 
 class Version(univ.Integer):
@@ -854,196 +879,7 @@ class GeneralName(univ.Choice):
 
 class GeneralNames(univ.SequenceOf):
     componentType = GeneralName()
+    to_python = generic.parse_general_names
     subtypeSpec = univ.SequenceOf.subtypeSpec + constraint.ValueSizeConstraint(
         1, MAX
     )
-
-
-class AccessDescription(univ.Sequence):
-    componentType = namedtype.NamedTypes(
-        namedtype.NamedType('accessMethod', univ.ObjectIdentifier()),
-        namedtype.NamedType('accessLocation', GeneralName())
-    )
-
-
-class AuthorityInfoAccess(univ.SequenceOf):
-    componentType = AccessDescription()
-    subtypeSpec = univ.SequenceOf.subtypeSpec + constraint.ValueSizeConstraint(
-        1, MAX
-    )
-
-
-class KeyPurposeId(univ.ObjectIdentifier):
-    pass
-
-
-class ExtKeyUsageSyntax(univ.SequenceOf):
-    componentType = KeyPurposeId()
-    subtypeSpec = univ.SequenceOf.subtypeSpec + constraint.ValueSizeConstraint(
-        1, MAX
-    )
-
-
-class ReasonFlags(univ.BitString):
-    namedValues = namedval.NamedValues(
-        ('unused', 0),
-        ('keyCompromise', 1),
-        ('cACompromise', 2),
-        ('affiliationChanged', 3),
-        ('superseded', 4),
-        ('cessationOfOperation', 5),
-        ('certificateHold', 6)
-    )
-
-
-class DistributionPointName(univ.Choice):
-    componentType = namedtype.NamedTypes(
-        namedtype.NamedType(
-            'fullName', 
-            GeneralNames().subtype(
-                implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 0)
-            )
-        ),
-        namedtype.NamedType(
-            'nameRelativeToCRLIssuer', 
-            RelativeDistinguishedName().subtype(
-                implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 1)
-            )
-        )
-    )
-
-
-class DistributionPoint(univ.Sequence):
-    componentType = namedtype.NamedTypes(
-        namedtype.OptionalNamedType(
-            'distributionPoint', 
-            DistributionPointName().subtype(
-                implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 0)
-            )
-        ),
-        namedtype.OptionalNamedType(
-            'reasons', 
-            ReasonFlags().subtype(
-                implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 1)
-            )
-        ),
-        namedtype.OptionalNamedType(
-            'cRLIssuer', 
-            GeneralNames().subtype(
-                implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 2)
-            )
-        )
-    )
-
-
-class CRLDistributionPoints(univ.SequenceOf):
-    componentType = DistributionPoint()
-    subtypeSpec = univ.SequenceOf.subtypeSpec + constraint.ValueSizeConstraint(
-        1, MAX
-    )
-
-
-class PolicyQualifierId(univ.ObjectIdentifier):
-    subtypeSpec = univ.ObjectIdentifier.subtypeSpec + constraint.SingleValueConstraint(
-        id_qt_cps, id_qt_unotice
-    )
-
-
-class CertPolicyId(univ.ObjectIdentifier):
-    pass
-
-
-class PolicyQualifierInfo(univ.Sequence):
-    componentType = namedtype.NamedTypes(
-        namedtype.NamedType('policyQualifierId', PolicyQualifierId()),
-        namedtype.NamedType('qualifier', DirectoryString()),
-    )
-
-
-class PolicyInformation(univ.Sequence):
-    componentType = namedtype.NamedTypes(
-        namedtype.NamedType('policyIdentifier', CertPolicyId()),
-        namedtype.OptionalNamedType(
-            'policyQualifiers', 
-            univ.SequenceOf(componentType=PolicyQualifierInfo()).subtype(
-                subtypeSpec=constraint.ValueSizeConstraint(1, MAX)
-            )
-        )
-    )
-
-class CertificatePolicies(univ.SequenceOf):
-    componentType = PolicyInformation()
-    subtypeSpec = univ.SequenceOf.subtypeSpec + constraint.ValueSizeConstraint(
-        1, MAX
-    )
-
-
-# RFC5280, section 4.2.1.3
-class KeyUsage(univ.BitString):
-    namedValues = namedval.NamedValues(
-        ('digitalSignature', 0),
-        ('nonRepudiation', 1),
-        ('keyEncipherment', 2),
-        ('dataEncipherment', 3),
-        ('keyAgreement', 4),
-        ('keyCertSign', 5),
-        ('cRLSign', 6),
-        ('encipherOnly', 7),
-        ('decipherOnly', 8),
-    )
-
-
-class KeyIdentifier(univ.OctetString):
-    pass
-
-
-class SubjectKeyIdentifier(KeyIdentifier):
-    pass
-
-
-# RFC5280, section 4.2.1.1
-class AuthorityKeyIdentifier(univ.Sequence):
-    componentType = namedtype.NamedTypes(
-        namedtype.OptionalNamedType(
-            'keyIdentifier', 
-            KeyIdentifier().subtype(
-                implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)
-            )
-        ),
-        namedtype.OptionalNamedType(
-            'authorityCertIssuer', 
-            GeneralNames().subtype(
-                implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 1)
-            )
-        ),
-        namedtype.OptionalNamedType(
-            'authorityCertSerialNumber', 
-            CertificateSerialNumber().subtype(
-                implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 2)
-            )
-        )
-    )
-
-# RFC5280, section 4.2.1.10
-class BasicConstraints(univ.Sequence):
-    componentType = namedtype.NamedTypes(
-        namedtype.OptionalNamedType('cA', univ.Boolean(False)),
-        namedtype.OptionalNamedType(
-            'pathLenConstraint',
-            univ.Integer().subtype(
-                subtypeSpec=constraint.ValueRangeConstraint(0, MAX)
-            )
-        ),
-    )
-
-
-class CertificateIssuer(GeneralNames):
-    pass
-
-
-class SubjectAltName(GeneralNames):
-    pass
-
-
-class IssuerAltName(GeneralNames):
-    pass
