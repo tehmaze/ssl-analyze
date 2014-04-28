@@ -32,6 +32,7 @@ def load_probe(filename):
         PROBES[name] = getattr(module, 'PROBES', [])
     except Exception, e:
         log.warning('Loading {} failed "{}"'.format(name, e))
+        raise
 
 
 def load_probes(path=None):

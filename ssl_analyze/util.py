@@ -1,5 +1,6 @@
 from collections import OrderedDict, MutableSet
 import datetime
+import os
 
 from pyasn1.codec.der import decoder as der_decoder
 from pyasn1.type import char, univ
@@ -22,6 +23,12 @@ def merge(a, b):
             yield (key, a[key])
         else:
             yield (key, b[key])
+
+
+def get_random_bytes(size):
+    b = bytearray(os.urandom(size))
+    assert len(b) == size
+    return b
 
 
 class OrderedSet(MutableSet):
