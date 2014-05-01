@@ -299,12 +299,10 @@ class AttributeTypeAndValue(univ.Sequence):
     )
 
     def to_python(self):
-        atype = self.getComponentByName('type')
-        value = self.getComponentByName('value')
-        if atype:
-            return {atype.to_python(): value.to_python()}
-        else:
-            return {}
+        return {
+            self.getComponentByName('type').to_python():
+                self.getComponentByName('value').to_python()
+        }
 
     def to_rfc2253(self):
         return '='.join([
@@ -336,7 +334,16 @@ class Name(univ.Choice):
     componentType = namedtype.NamedTypes(
         namedtype.NamedType('', RDNSequence())
     )
-    to_python = generic.parse_choice
+
+    def to_python(self):
+        name = {}
+        rdn  = self[0]  # RelativeDistinguishedName
+
+        for obj in rdn:
+            atv = obj[0]  # AttributeTypeAndValue
+            name.update(atv.to_python())
+
+        return name
 
     def to_rfc2253(self):
         name = []

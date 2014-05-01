@@ -99,7 +99,16 @@ class Certificate(Sequence):
         super(Certificate, self).__init__(sequence)
         self.tbsCertificate = self.sequence.getComponentByName('tbsCertificate')
         self.validity = self.tbsCertificate.getComponentByName('validity')
-        self.extensions = self.get_extensions()
+        #self.extensions = self.get_extensions()
+
+    def __repr__(self):
+        subject = self.get_subject()
+        if 'commonName' in subject:
+            return '<Certificate CN={}>'.format(subject['commonName'])
+        elif 'organizationName' in subject:
+            return '<Certificate O={}>'.format(subject['organizationName'])
+        else:
+            return '<Certificate {}>'.format(self.get_subject_str())
 
     def get_certificate_der(self):
         return der_encoder.encode(self.tbsCertificate)
@@ -115,15 +124,23 @@ class Certificate(Sequence):
         else:
             extensions = {}
             for i in xrange(self.get_extension_count()):
-                extension = self.get_extension(i)
+                try:
+                    extension = self.get_extension(i)
+                except Warning as message:
+                    log.info('Failed to parse extension: {}'.format(w))
+                    extension = None
+
                 if extension is not None:
                     extensions[extension.name] = extension
+
             return extensions
 
     def get_extension_count(self):
         try:
             return len(self.tbsCertificate.getComponentByName('extensions'))
         except PyAsn1Error:
+            return 0
+        except TypeError:
             return 0
 
     def get_issuer(self):
@@ -188,6 +205,39 @@ class Certificate(Sequence):
     def get_subject_str(self):
         return self.tbsCertificate.getComponentByName('subject').to_rfc2253()
 
+    @property
+    def is_ca(self):
+        extensions = self.get_extensions()
+        print extensions
+        if 'basicConstraints' in extensions:
+            basicConstraints = extensions['basicConstraints'].to_python()
+            return basicConstraints.get('ca', False)
+        else:
+            return False
+
+    def to_json(self):
+        extensions = {}
+
+        for name, extension in self.get_extensions().iteritems():
+            extensions[name] = extension.to_json()
+
+        return dict(
+            data                = self.to_pem(),
+            extensions          = extensions,
+            issuer              = self.get_issuer(),
+            issuer_hash         = self.get_issuer_hash(),
+            issuer_str          = self.get_issuer_str(),
+            not_after           = self.get_not_after(),
+            not_before          = self.get_not_before(),
+            serial              = self.get_serial_number(),
+            signature           = self.get_signature().encode('hex'),
+            signature_algorithm = self.get_signature_algorithm(),
+            subject             = self.get_subject(),
+            subject_hash        = self.get_subject_hash(),
+            subject_string      = self.get_subject_str(),
+            public_key          = self.get_public_key().to_json(),
+        )
+
     def verify(self, certificate):
         '''Meh it sucks having to load OpenSSL; but it's the fastest option.'''
         vrfy = load_certificate(FILETYPE_ASN1, self.to_der())
@@ -227,7 +277,10 @@ class PublicKey(Sequence):
     def get_bits(self):
         return self.key.get_bits()
 
-    def get_info(self):
+    def get_type(self):
+        return self.algorithm.split('+')[0]
+
+    def to_json(self):
         key_type = self.get_type()
         key_info = dict(
             bits=self.get_bits(),
@@ -247,9 +300,6 @@ class PublicKey(Sequence):
             ))
 
         return key_info
-
-    def get_type(self):
-        return self.algorithm.split('+')[0]
 
     def to_pem(self):
         return super(PublicKey, self).to_pem(
@@ -307,6 +357,9 @@ class Extension(Sequence):
 
     def get(self, key, default=None):
         return self.parsed.get(key, default)
+
+    def to_json(self):
+        return self.to_python()
 
     def to_python(self):
         if hasattr(self, 'parsed'):

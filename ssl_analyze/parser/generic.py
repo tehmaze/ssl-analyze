@@ -45,9 +45,9 @@ def parse_general_name(sequence):
 
 
 def parse_general_names(sequence):
-    parsed = OrderedDict()
+    parsed = []
     for item in list(sequence):
-        parsed.update(parse_general_name(item))
+        parsed.append(parse_general_name(item))
     return parsed
 
 

@@ -41,6 +41,8 @@ class Analyzer(object):
                 print('Oops: {}'.format(e))
                 raise
 
+        return info
+        '''
         try:
             print json.dumps(
                 info,
@@ -51,15 +53,16 @@ class Analyzer(object):
         except Exception:
             import pprint
             print pprint.pprint(info)
+        '''
 
     def analyze_certificate(self, data, **kwargs):
         certificates = map(parse_certificate,
                            parse_pem(data.splitlines(), 'CERTIFICATE'))
 
-        self.analyze(None, certificates)
+        return self.analyze(None, certificates)
 
     def analyze_tcp(self, address):
-        self.analyze(address, [])
+        return self.analyze(address, [])
 
     def _json_handler(self, obj):
         if hasattr(obj, 'isoformat'):

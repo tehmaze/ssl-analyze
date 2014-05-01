@@ -33,7 +33,7 @@ class Probe(object):
     def __repr__(self):
         return '{}.{}'.format(
             os.path.basename(os.path.splitext(__file__)[0]),
-            self.__name__,
+            self.__class__.__name__,
         )
 
     @classmethod

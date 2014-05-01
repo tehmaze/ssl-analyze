@@ -16,7 +16,10 @@ class TrustStore(dict):
     def add_trust(self, substrate):
         certificate = parse_certificate(substrate)
         self[certificate.get_subject_hash()] = certificate
-        log.info('Added {}'.format(certificate.get_subject_str()))
+        log.info('Added {} ({})'.format(
+            certificate.get_subject_str(),
+            certificate.get_subject_hash(),
+        ))
 
     def add_trust_from_ca_dir(self, directory):
         for filename in os.listdir(directory):

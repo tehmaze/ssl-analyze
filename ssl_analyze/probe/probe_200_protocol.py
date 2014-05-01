@@ -26,12 +26,12 @@ SSL_PROTOCOL = (
     ),
     (TLSv1_1_METHOD, 'TLSv1.1', (
             dict(status='warning'),
-            dict(status='good', reason='No known security issues'),
+            dict(status='ok', reason='No known security issues'),
         )
     ),
     (TLSv1_METHOD, 'TLSv1.0', (
             dict(status='warning'),
-            dict(status='good', reason='Largely still secure'),
+            dict(status='ok', reason='Largely still secure'),
         )
     ),
     (SSLv3_METHOD, 'SSLv3', (
@@ -44,7 +44,7 @@ SSL_PROTOCOL = (
         )
     ),
     (SSLv2_METHOD, 'SSLv2', (
-            dict(status='good'),
+            dict(status='ok'),
             dict(status='error', reason='Insecure protocol'),
         )
     ),

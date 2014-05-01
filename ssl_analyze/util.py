@@ -1,11 +1,14 @@
 from collections import OrderedDict, MutableSet
 import datetime
 import os
+import Queue
+import threading
 
 from pyasn1.codec.der import decoder as der_decoder
 from pyasn1.type import char, univ
 
 from ssl_analyze.asn1_models import x509
+from ssl_analyze.log import log
 from ssl_analyze.oids import friendly_oid
 
 ASN1_GENERALIZEDTIME = (
@@ -91,3 +94,84 @@ class OrderedSet(MutableSet):
             return len(self) == len(other) and list(self) == list(other)
         else:
             return set(self) == set(other)
+
+
+class ThreadPoolDone(object):
+    pass
+
+
+class ThreadPool(object):
+    Done = ThreadPoolDone
+
+    def __init__(self):
+        self._active_threads = 0
+        self._jobs           = Queue.Queue()
+        self._results        = Queue.Queue()
+        self._threads        = []
+
+    def add_job(self, func, args):
+        self._jobs.put((func, args))
+
+    def get_results(self):
+        active_threads = self._active_threads
+        while active_threads or not self._results.empty():
+            result = self._results.get()
+            if isinstance(result, ThreadPool.Done):
+                active_threads -= 1
+                self._results.task_done()
+                continue
+
+            else:
+                self._results.task_done()
+                yield result
+
+    def join(self):
+        self._jobs.join()
+        self._active_threads = 0
+        self._results.join()
+
+    def start(self, workers):
+        log.info('Starting {} thread pool workers'.format(workers))
+        if self._active_threads:
+            raise SyntaxError('Already started')
+
+        for x in xrange(workers):
+            worker = threading.Thread(
+                target=self._work,
+                args=(self._jobs, self._results),
+                name='worker_{:03d}'.format(x),
+            )
+            worker.start()
+            self._threads.append(worker)
+            self._active_threads += 1
+
+        for worker in self._threads:
+            self._jobs.put(ThreadPool.Done())
+
+        log.info('Done starting workers')
+
+    def _work(self, jobs, results):
+        while True:
+            job = jobs.get()
+
+            if isinstance(job, ThreadPool.Done):
+                log.debug('[{}] done'.format(
+                    threading.currentThread().name,
+                ))
+                # Bye!
+                results.put(ThreadPool.Done())
+                jobs.task_done()
+                break
+
+            func = job[0]
+            args = job[1]
+            try:
+                result = func(*args)
+            except Exception as error:
+                log.error('Uncaught exception in thread worker: {}'.format(
+                    error,
+                ))
+            else:
+                results.put(result)
+            finally:
+                jobs.task_done()

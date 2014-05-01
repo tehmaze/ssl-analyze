@@ -5,6 +5,9 @@ from ssl_analyze.log import log
 from ssl_analyze.config import CONFIG
 
 
+B1023 = 1 << 1023
+
+
 class AnalyzePubKey(Probe):
     def setup(self):
         self.config = CONFIG.get('analyze', {}).get('public_key', {})
@@ -21,14 +24,14 @@ class AnalyzePubKey(Probe):
                 public_key.get_type(),
             ))
 
-            key_info = dict()
+            key_info = dict(status='good')
             key_bits = public_key.get_bits()
             key_type = public_key.get_type()
             key_conf = self.config.get('key_sizes', {}).get(key_type)
+            key_name = '{} {} bits'.format(key_type, key_bits)
             if key_conf:
-                key_info['type'] = dict(status='good')
                 if key_bits < key_conf['bits']:
-                    key_info['bits'] = dict(
+                    key_info = dict(
                         status='error',
                         reason='{} bits {} key is less than {}: {}'.format(
                             key_bits,
@@ -38,20 +41,29 @@ class AnalyzePubKey(Probe):
                         )
                     )
 
-                else:
-                    key_info['bits'] = dict(status='good')
+                elif key_type == 'rsa':
+                    modulus = public_key.get_modulus()
+                    exponent = public_key.get_exponent()
+                    if modulus < B1023:
+                        key_info = dict(
+                            status='error',
+                            reason='Weak key',
+                        )
+                    elif exponent < 65537:
+                        key_info = dict(
+                            status='error',
+                            reason='Weak exponent used 0x{:04x}'.format(
+                                exponent,
+                            )
+                        )
 
             else:
-                key_info['type'] = dict(
+                key_info = dict(
                     status='error',
                     reason='Unsupported public key algorithm',
                 )
-                key_info['bits'] = dict(
-                    status='unknown',
-                    reason='Unsupported public key algorithm',
-                )
 
-            key_infos.append(key_info)
+            key_infos.append({key_name: key_info})
 
         return self.merge(dict(
             analysis=dict(public_keys=key_infos),

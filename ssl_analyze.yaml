@@ -1,5 +1,7 @@
 analyze:
   certificate:
+  cipher:
+    parallel: 5
   public_key:
     key_sizes:
       DSA:
