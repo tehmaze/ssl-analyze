@@ -794,6 +794,28 @@ class CipherSuite(object):
         return ciphers
 
 
+TLS_CERTIFICATE_TYPE = {
+    0: 'x509',
+    1: 'openpgp',
+    2: 'raw',
+}
+
+
+@contribute_to_class(TLS_CERTIFICATE_TYPE)
+class CertificateType(object):
+    pass
+
+
+TLS_CERTIFICATE_STATUS_TYPE = {
+    1: 'ocsp',
+}
+
+
+@contribute_to_class(TLS_CERTIFICATE_STATUS_TYPE)
+class CertificateStatusType(object):
+    pass
+
+
 TLS_CLIENT_CERTIFICATE_TYPE = {
     1:  'rsa_sign',
     2:  'dss_sign',
@@ -827,21 +849,96 @@ class ContentType(object):
     all                 = tuple(TLS_CONTENT_TYPE)
 
 
+TLS_EC_CURVE_NAME = {
+    0x0001: 'sect163k1',                        # RFC 4492
+    0x0002: 'sect163r1',                        # RFC 4492
+    0x0003: 'sect163r2',                        # RFC 4492
+    0x0004: 'sect193r1',                        # RFC 4492
+    0x0005: 'sect193r2',                        # RFC 4492
+    0x0006: 'sect233k1',                        # RFC 4492
+    0x0007: 'sect233r1',                        # RFC 4492
+    0x0008: 'sect239k1',                        # RFC 4492
+    0x0009: 'sect283k1',                        # RFC 4492
+    0x000a: 'sect283r1',                        # RFC 4492
+    0x000b: 'sect409k1',                        # RFC 4492
+    0x000c: 'sect409r1',                        # RFC 4492
+    0x000d: 'sect571k1',                        # RFC 4492
+    0x000e: 'sect571r1',                        # RFC 4492
+    0x000f: 'secp160k1',                        # RFC 4492
+    0x0010: 'secp160r1',                        # RFC 4492
+    0x0011: 'secp160r2',                        # RFC 4492
+    0x0012: 'secp192k1',                        # RFC 4492
+    0x0013: 'secp192r1',                        # RFC 4492
+    0x0014: 'secp224k1',                        # RFC 4492
+    0x0015: 'secp224r1',                        # RFC 4492
+    0x0016: 'secp256k1',                        # RFC 4492
+    0x0017: 'secp256r1',                        # RFC 4492
+    0x0018: 'secp384r1',                        # RFC 4492
+    0x0019: 'secp521r1',                        # RFC 4492
+    0x001a: 'brainpoolP256r1',                  # RFC 7027
+    0x001b: 'brainpoolP384r1',                  # RFC 7027
+    0x001c: 'brainpoolP512r1',                  # RFC 7027
+    0xff01: 'arbitrary_explicit_prime_curves',  # RFC 4492
+    0xff02: 'arbitrary_explicit_char2_curves',  # RFC 4492
+}
+
+
+@contribute_to_class(TLS_EC_CURVE_NAME)
+class ECCurveName(object):
+    pass
+
+
+TLS_EC_POINT_FORMAT = {
+    0x00: 'uncompressed',               # RFC 4492
+    0x01: 'ansiX962_compressed_prime',  # RFC 4492
+    0x02: 'ansiX962_compressed_char2',  # RFC 4492
+}
+
+
+@contribute_to_class(TLS_EC_POINT_FORMAT)
+class ECPointFormat(object):
+    pass
+
+
+TLS_EC_CURVE_TYPE = {
+    0x01: 'explicit_prime',             # RFC 4492
+    0x02: 'explicit_char2',             # RFC 4492
+    0x03: 'named_curve',                # RFC 4492
+}
+
+
+@contribute_to_class(TLS_EC_CURVE_TYPE)
+class ECCurveType(object):
+    pass
+
+
 TLS_EXTENSION_TYPE = {
-    0x0000: 'server_name',          # RFC 4366
-    0x0005: 'status_request',       # RFC 4366
-    0x0009: 'cert_type',            # RFC 6091
-    0x000a: 'elliptic_curves',      # RFC 4492
-    0x000b: 'ec_point_formats',     # RFC 4492
-    0x000d: 'sig_hash_algs',        # RFC 6066
-    0x000f: 'heartbeat',            # RFC 6520
-    0x0010: 'alpn',                 # draft-iets-tls-applayerprotoneg
-    0x0011: 'status_request_v2',    #
-    0x0023: 'session_ticket',       # RFC 5077
-    0x3374: 'supports_npn',         # draft-agl-tls-nextprotoneg
-    0x754f: 'channel_id',           # draft-balfanz-tls-channelid
-    0xf300: 'tack',                 # draft-perrin-tls-tack
-    0xff01: 'reneg_info',           # RFC 5746
+    0x0000: 'server_name',                  # RFC 6066
+    0x0001: 'max_fragment_length',          # RFC 6066
+    0x0002: 'client_cerficicate_url',       # RFC 6066
+    0x0003: 'trusted_ca_keys',              # RFC 6066
+    0x0004: 'truncated_hmac',               # RFC 6066
+    0x0005: 'status_request',               # RFC 6066
+    0x0006: 'user_mapping',                 # RFC 4681
+    0x0007: 'client_authz',                 # RFC 5878
+    0x0008: 'server_authz',                 # RFC 5878
+    0x0009: 'cert_type',                    # RFC 6091
+    0x000a: 'elliptic_curves',              # RFC 4492
+    0x000b: 'ec_point_formats',             # RFC 4492
+    0x000c: 'srp',                          # RFC 5054
+    0x000d: 'signature_algorithms',         # RFC 6066
+    0x000e: 'use_srtp',                     # RFC 5764
+    0x000f: 'heartbeat',                    # RFC 6520
+    0x0010: 'alpn',                         # draft-iets-tls-applayerprotoneg
+    0x0011: 'status_request_v2',            # RFC 6961
+    0x0012: 'signed_certificate_timestamp', # RFC 6962
+    0x0013: 'client_certificate_type',      # draft-iets-tls-oob-pubkey
+    0x0014: 'server_certificate_type',      # draft-iets-tls-oob-pubkey
+    0x0023: 'session_ticket',               # RFC 5077
+    0x3374: 'supports_npn',                 # draft-agl-tls-nextprotoneg
+    0x754f: 'channel_id',                   # draft-balfanz-tls-channelid
+    0xf300: 'tack',                         # draft-perrin-tls-tack
+    0xff01: 'reneg_info',                   # RFC 5746
 }
 
 
@@ -877,6 +974,7 @@ TLS_HANDSHAKE_TYPE = {
     21: 'certificate_url',
     22: 'certificate_status',
     23: 'supplemental_data',
+    67: 'next_protocol',            # draft-agl-tls-nextprotoneg
 }
 
 
