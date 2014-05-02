@@ -1,3 +1,2 @@
-crypto
 pyasn1
 pyPOpenSSL

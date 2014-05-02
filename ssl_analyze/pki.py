@@ -5,7 +5,6 @@ from pyasn1.codec.der import decoder as der_decoder
 from pyasn1.codec.der import encoder as der_encoder
 from pyasn1.error import PyAsn1Error
 from pyasn1.type import univ
-from Crypto.Util import asn1
 from OpenSSL.crypto import (
     dump_certificate,
     load_certificate,
