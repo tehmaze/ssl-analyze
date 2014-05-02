@@ -54,7 +54,9 @@ class Certificate(Handshake):
                 self.certificate_chain = certificates
 
         else:
-            raise AssertionError()
+            raise AssertionError('Unsupported certificate_type "{}"'.format(
+                self.certificate_type,
+            ))
 
         r.size_check_stop()
         return self

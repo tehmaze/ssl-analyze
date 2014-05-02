@@ -200,13 +200,25 @@ class Connection(object):
 
         # Get ChangeCipherSpec
         for result in self._recv_message(
-                ContentType.change_cipher_spec,
+                (
+                    ContentType.change_cipher_spec,
+                    ContentType.handshake,
+                ),
+                (
+                    HandshakeType.certificate,
+                ),
+                self.server_hello.certificate_type
             ):
             if result in (0, 1):
                 yield result
             else:
                 break
-        self.change_cipher_spec = result
+
+        if isinstance(result, ChangeCipherSpec):
+            self.change_cipher_spec = result
+        else:
+            log.debug('Did not receive a change_cipher_spec message')
+            self.change_cipher_spec = None
 
     def _send_client_hello(self, **kwargs):
         clientHello = ClientHello()
