@@ -92,14 +92,10 @@ tbody tr {
       <th>Valid for</th>
       <td>{{ cert.subject.commonName }}</td>
     </tr>
-{% if cert.extensions.subjectAltName -%}
+{% if cert.subject_alternative -%}
     <tr>
       <th>&hellip; and also for</th>
-      <td>
-        {% for san in cert.extensions['subjectAltName'] %}
-        {{ san['dNSName'] }}{% if not loop.last %}, {% endif %}
-        {% endfor %}
-      </td>
+      <td>{{ cert.subject_alternative|join(", ") }}</td>
     </tr>
 {%- endif %}
     <tr>

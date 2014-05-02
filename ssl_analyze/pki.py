@@ -201,6 +201,21 @@ class Certificate(Sequence):
     def get_subject(self):
         return self.tbsCertificate.getComponentByName('subject').to_python()
 
+    def get_subject_alternative(self, types=('dNSName', 'iPAddress')):
+        extensions = self.get_extensions()
+        subject = self.get_subject()
+        skips = []
+        if 'commonName' in subject:
+            skips.append(subject['commonName'].lower())
+        names = []
+        if 'subjectAltName' in extensions:
+            for item in extensions['subjectAltName'].to_python():
+                for typ, name in item.iteritems():
+                    name = name.lower()
+                    if typ in types and name not in skips:
+                        names.append(name)
+        return names
+
     def get_subject_der(self):
         return der_encoder.encode(
             self.tbsCertificate.getComponentByName('subject')
@@ -243,6 +258,7 @@ class Certificate(Sequence):
             signature           = self.get_signature().encode('hex'),
             signature_algorithm = self.get_signature_algorithm(),
             subject             = self.get_subject(),
+            subject_alternative = self.get_subject_alternative(),
             subject_hash        = self.get_subject_hash(),
             subject_string      = self.get_subject_str(),
             public_key          = self.get_public_key().to_json(),
