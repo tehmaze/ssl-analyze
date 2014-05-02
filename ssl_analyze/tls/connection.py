@@ -5,13 +5,18 @@ from ssl_analyze.tls.buffer import Buffer, Reader
 from ssl_analyze.tls.handshake import (
     Handshake,
     CertificateRequest,
+    CertificateStatus,
     ClientHello,
     ServerHello,
     ServerHelloDone,
     Certificate,
     ServerKeyExchange,
 )
-from ssl_analyze.tls.packet import RecordHeader3, Alert
+from ssl_analyze.tls.packet import (
+    Alert,
+    ChangeCipherSpec,
+    RecordHeader3,
+)
 from ssl_analyze.tls.parameters import (
     dict_key,
     TLS_CIPHER_SUITE,
@@ -62,20 +67,6 @@ class Connection(object):
         for result in self._recv_server_hello(self.client_hello):
             if result in (0, 1):
                 yield result
-            else:
-                break
-        self.server_hello = result
-
-        # Receive server RSA Key Exchange
-        for result in self._recv_server_rsa_key_exchange(
-                self.client_hello,
-                self.server_hello,
-            ):
-            if result in (0, 1):
-                yield result
-            else:
-                break
-        self.server_key_exchange = result
 
     def resume(self, **kwargs):
         # Send client Hello
@@ -86,18 +77,35 @@ class Connection(object):
                 break
         self.client_hello = result
 
-        # Receive server Hello
-        for result in self._recv_server_hello(self.client_hello):
+        # Receive server hello done
+        for result in self._recv_server_hello_resume(self.client_hello):
             if result in (0, 1):
                 yield result
-            else:
-                break
-        self.server_hello = result
 
     def get_certificate_chain(self):
         return self._certificates
 
     def _recv_server_hello(self, clientHello):
+        '''
+        Client                                        Server
+        ------                                        ------
+
+        ClientHello          -------->
+                                                 ServerHello
+                                                Certificate*
+                                          ServerKeyExchange*
+                                        CertificateRequest*+
+                             <--------       ServerHelloDone
+        Certificate*+
+        ClientKeyExchange
+        CertificateVerify*+
+        [ChangeCipherSpec]
+        Finished             -------->
+                                          [ChangeCipherSpec]
+                             <--------              Finished
+
+        Application Data     <------->      Application Data
+        '''
         for result in self._recv_message(
                 ContentType.handshake,
                 HandshakeType.server_hello
@@ -106,56 +114,99 @@ class Connection(object):
                 yield result
             else:
                 break
-        serverHello = result
-        self.version = serverHello.server_version
-        yield serverHello
+        self.server_hello = result
+        self.version = self.server_hello.server_version
 
-    def _recv_server_rsa_key_exchange(self, clientHello, serverHello):
-        # Get Certificate[, CertificateRequest], ServerHelloDone
+        # Get ServerCertificate
         for result in self._recv_message(
                 ContentType.handshake,
                 HandshakeType.certificate,
-                serverHello.certificate_type
+                self.server_hello.certificate_type
             ):
             if result in (0, 1):
                 yield result
             else:
-                print result
                 break
-        serverCertificate = result
-        self._certificates = serverCertificate.certificate_chain
+        self.server_certificate = result
+        self._certificates = self.server_certificate.certificate_chain
 
-        # Get CertificateRequest[, ServerKeyExchange] or ServerHelloDone
-        for result in self._recv_message(
-                ContentType.handshake,
-                (
-                    HandshakeType.server_hello_done,
-                    HandshakeType.certificate_request,
-                    HandshakeType.server_key_exchange,
-                ),
-            ):
-            if result in (0, 1):
-                yield result
-            else:
-                break
-        message = result
-        certificateRequest = None
-        if isinstance(message, CertificateRequest):
-            certificateRequest = message
-            # We got CertificateRequest, so this must be ServerHelloDone
+        # Get CertificateRequest[, ServerKeyExchange, CertificateStatus] or
+        # ServerHelloDone
+        self.certificate_request = None
+        self.server_key_exchange = None
+        self.certificate_status = None
+        self.server_hello_done = None
+        expected_types = (
+            HandshakeType.server_key_exchange,
+            HandshakeType.certificate_status,
+            HandshakeType.certificate_request,
+            HandshakeType.server_hello_done,
+        )
+        constructor_type = self.server_hello.cipher_suite
+        while self.server_hello_done is None:
             for result in self._recv_message(
                     ContentType.handshake,
-                    HandshakeType.server_hello_done
+                    expected_types,
+                    constructor_type,
                 ):
                 if result in (0, 1):
                     yield result
                 else:
                     break
 
-            serverHelloDone = result
+            message = result
+            if isinstance(message, CertificateRequest):
+                self.certificate_request = message
+                expected_types = HandshakeType.server_hello_done
 
-        elif isinstance(message, ServerHelloDone):
-            serverHelloDone = message
+            elif isinstance(message, ServerKeyExchange):
+                print message
+                self.server_key_exchange = message
+                self.server_key_exchange.cipher_suite = self.server_hello.cipher_suite
+                expected_types = (
+                    HandshakeType.certificate_request,
+                    HandshakeType.server_hello_done,
+                )
+
+            elif isinstance(message, ServerHelloDone):
+                self.server_hello_done = message
+
+            yield message
+
+    def _recv_server_hello_resume(self, clientHello):
+        '''
+        Client                                                Server
+        ClientHello
+        (SessionTicket extension)      -------->
+                                                         ServerHello
+                                     (empty SessionTicket extension)
+                                                    NewSessionTicket
+                                                  [ChangeCipherSpec]
+                                      <--------             Finished
+        [ChangeCipherSpec]
+        Finished                      -------->
+        Application Data              <------->     Application Data
+        '''
+        for result in self._recv_message(
+                ContentType.handshake,
+                HandshakeType.server_hello
+            ):
+            if result in (0, 1):
+                yield result
+            else:
+                break
+        self.server_hello = result
+        self.version = self.server_hello.server_version
+
+        # Get ChangeCipherSpec
+        for result in self._recv_message(
+                ContentType.change_cipher_spec,
+            ):
+            if result in (0, 1):
+                yield result
+            else:
+                break
+        self.change_cipher_spec = result
 
     def _send_client_hello(self, **kwargs):
         clientHello = ClientHello()
@@ -174,7 +225,7 @@ class Connection(object):
         yield clientHello
 
     def _recv_message(self, expected_type, secondary_type=None,
-                      constructorType=None):
+                      constructor_type=None):
 
         if not isinstance(expected_type, tuple):
             expected_type= (expected_type,)
@@ -205,6 +256,9 @@ class Connection(object):
             # Parse based on content_type
             if content_type == ContentType.alert:
                 yield Alert().parse(r)
+
+            elif content_type == ContentType.change_cipher_spec:
+                yield ChangeCipherSpec().parse(r)
 
             elif content_type == ContentType.handshake:
                 if not isinstance(secondary_type, tuple):
@@ -240,10 +294,13 @@ class Connection(object):
                     yield ServerHello(record_header.v2).parse(r)
 
                 elif sub_type == HandshakeType.certificate:
-                    yield Certificate(constructorType).parse(r)
+                    yield Certificate(constructor_type).parse(r)
+
+                elif sub_type == HandshakeType.certificate_status:
+                    yield CertificateStatus().parse(r)
 
                 elif sub_type == HandshakeType.server_key_exchange:
-                    yield ServerKeyExchange(constructorType).parse(r)
+                    yield ServerKeyExchange(constructor_type).parse(r)
 
                 elif sub_type == HandshakeType.server_hello_done:
                     yield ServerHelloDone().parse(r)

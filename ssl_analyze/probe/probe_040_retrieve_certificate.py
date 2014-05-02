@@ -2,10 +2,11 @@ import socket
 import ssl
 
 from ssl_analyze.probe.base import Probe
-from ssl_analyze.crypto import parse_certificate, parse_pem
+from ssl_analyze.log import log
+from ssl_analyze.pki import parse_certificate, parse_pem
+from ssl_analyze.remote import Remote
 from ssl_analyze.tls.connection import Connection
 from ssl_analyze.tls.parameters import TLS_CIPHER_SUITE, CipherSuite
-from ssl_analyze.log import log
 
 
 class RetrieveCertificate(Probe):
@@ -19,8 +20,8 @@ class RetrieveCertificate(Probe):
             log.info('Fetching certificate from %s:%d' % address)
 
         try:
-            remote = socket.create_connection(address)
-            remote.settimeout(5)
+            remote = Remote(address)
+            remote.connect()
             secure = Connection(remote)
             cipher = CipherSuite.filter(
                 key_exchange=('RSA', 'DH'),

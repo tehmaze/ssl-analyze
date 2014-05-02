@@ -846,7 +846,7 @@ TLS_CONTENT_TYPE = {
 
 @contribute_to_class(TLS_CONTENT_TYPE)
 class ContentType(object):
-    all                 = tuple(TLS_CONTENT_TYPE)
+    all = tuple(TLS_CONTENT_TYPE)
 
 
 TLS_EC_CURVE_NAME = {
@@ -955,6 +955,17 @@ TLS_HEARTBEAT_TYPE = {
 
 @contribute_to_class(TLS_HEARTBEAT_TYPE)
 class HeartbeatType(object):
+    pass
+
+
+TLS_HEARTBEAT_MODE = {
+    1:  'peer_allowed_to_send',
+    2:  'peer_not_allowed_to_send',
+}
+
+
+@contribute_to_class(TLS_HEARTBEAT_MODE)
+class HeartbeatMode(object):
     pass
 
 

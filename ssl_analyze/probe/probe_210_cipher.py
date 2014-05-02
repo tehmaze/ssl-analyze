@@ -2,21 +2,11 @@ import ssl
 import struct
 import socket
 
+from ssl_analyze.probe.base import Probe
 from ssl_analyze.config import CONFIG
 from ssl_analyze.util import ThreadPool
-from ssl_analyze.probe.base import Probe
 from ssl_analyze.log import log
-from ssl_analyze.network import (
-    Connection,
-    METHOD_NAME,
-    SSLv2_METHOD,
-    SSLv3_METHOD,
-    SSLv23_METHOD,
-    TLSv1_METHOD,
-    TLSv1_1_METHOD,
-    TLSv1_2_METHOD,
-)
-from ssl_analyze.tls.connection import Connection
+from ssl_analyze.remote import Remote
 from ssl_analyze.tls.parameters import (
     dict_key,
     TLS_CIPHER_SUITE,
@@ -222,13 +212,7 @@ class CipherSupport(Probe):
 
     def _test_cipher(self, address, *cipher_suites):
         try:
-            remote = socket.create_connection(address)
-        except socket.error, e:
-            log.debug('Connect failed: {}'.format(e))
-            return None
-
-        try:
-            secure = Connection(remote)
+            secure = self._connect(address)
             # Construct accepted ciphers, also include a pseudo cipher
             cipher_suites = list(cipher_suites)
             if not CipherSuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV in cipher_suites:
@@ -248,7 +232,7 @@ class CipherSupport(Probe):
             log.debug('Cipher accepted: {} chosen by server'.format(
                 TLS_CIPHER_SUITE[secure.server_hello.cipher_suite],
             ))
-            remote.close()
+            secure.close()
             return secure.server_hello.cipher_suite
 
 

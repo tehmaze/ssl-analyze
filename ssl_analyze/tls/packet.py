@@ -39,6 +39,23 @@ class Alert(object):
         raise Exception('{} TLS alert: {}'.format(level, description))
 
 
+class ChangeCipherSpec(object):
+    def __init__(self):
+        self.content_type = ContentType.change_cipher_spec
+        self.type = 1
+
+    def parse(self, r):
+        r.size_check_set(1)
+        self.type = r.get(1)
+        r.size_check_stop()
+        return self
+
+    def render(self):
+        b = Buffer()
+        b.add(self.type, 1)
+        return b.data
+
+
 class RecordHeader3(object):
     def __init__(self):
         self.content_type = 0

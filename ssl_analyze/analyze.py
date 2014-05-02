@@ -5,8 +5,8 @@ from pyasn1.type import univ
 from pyasn1.codec.der import decoder as der_decoder
 
 from ssl_analyze.config import CONFIG
-from ssl_analyze.crypto import parse_pem, parse_certificate
 from ssl_analyze.log import log
+from ssl_analyze.pki import parse_pem, parse_certificate
 from ssl_analyze.probe.loader import load_probes
 from ssl_analyze.trust import TRUST_STORE
 from ssl_analyze.util import OrderedSet

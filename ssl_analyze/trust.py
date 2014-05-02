@@ -1,8 +1,8 @@
 import os
 import re
 
-from ssl_analyze.crypto import parse_certificate, parse_pem
 from ssl_analyze.log import log
+from ssl_analyze.pki import parse_certificate, parse_pem
 
 
 RE_CKA_LABEL_UTF8            = re.compile(r'^CKA_LABEL UTF8 "(.*)"')

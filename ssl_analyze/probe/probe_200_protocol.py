@@ -72,13 +72,17 @@ class ProtocolSupport(Probe):
 
             try:
                 secure = remote.handshake(version, hostname=address[0])
-            except socket.error, e:
-                log.debug('Socket error: {}'.format(e))
+            except socket.error as error:
+                log.debug('Socket error: {}'.format(error))
                 state = status[STATE_ERROR].copy()
                 state['available'] = False
-                state['error'] = str(e)
+                state['error'] = str(error)
                 if not 'reason' in state:
-                    state['reason'] = str(e[1])
+                    error = str(error[1])
+                    if ': ' in error:
+                        state['reason'] = str(error).split(': ', 1)[1]
+                    else:
+                        state['reason'] = str(error)
             else:
                 state = status[STATE_OK].copy()
                 state['available'] = True

@@ -19,6 +19,7 @@ from OpenSSL.crypto import verify as SSLVerify
 from ssl_analyze.asn1_models import (
     dsa,
     rsa,
+    ocsp,
     x509,
     x509_extension,
 )
@@ -69,6 +70,15 @@ def parse_certificate(substrate):
     )
     assert not leftover
     return Certificate(decoded)
+
+
+def parse_ocsp_response(substrate):
+    decoded, leftover = der_decoder.decode(
+        substrate,
+        asn1Spec=ocsp.OCSPResponse(),
+    )
+    print decoded
+    assert not leftover
 
 
 class Sequence(object):

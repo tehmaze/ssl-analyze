@@ -1,6 +1,9 @@
 from collections import defaultdict
 import os
+import socket
 
+from ssl_analyze.remote import Remote
+from ssl_analyze.tls.connection import Connection
 from ssl_analyze.util import merge
 
 
@@ -39,6 +42,14 @@ class Probe(object):
     @classmethod
     def all(cls):
         return cls.__subclasses__()
+
+    def _connect(self, address):
+        try:
+            remote = Remote(address)
+            remote.connect()
+            return Connection(remote)
+        except socket.error as error:
+            raise Probe.Skip('Network error: {}'.format(error))
 
     def merge(self, collected, base=None):
         base = base or self.collected

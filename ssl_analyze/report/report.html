@@ -270,34 +270,6 @@ tbody tr {
       </td>
     </tr>
     <tr>
-      <th>Session resumption</th>
-      {% if features.session %}
-        {% if features.session_resumed %}
-      <td class="status-good">
-        Yes,
-        <span class="shadow">
-          {{ features.session_id|length }} byte Session ID was accepted
-        </span>
-        {% else %}
-      <td class="status-error standout">
-        No, Session ID assigned but not accepted
-        {% endif %}
-      {% else %}
-      No
-      {% endif %}
-      </td>
-    </tr>
-    <tr>
-      <th>Session tickets</th>
-      <td>
-      {% if features.session_ticket %}
-      Yes
-      {% else %}
-      No
-      {% endif %}
-      </td>
-    </tr>
-    <tr>
       <th>BEAST attack</th>
       <td class="status-{{ report.weakness.beast.status }}">
         {% if report.weakness.beast.exists %}Yes{% else %}No{% endif %},
@@ -326,6 +298,79 @@ tbody tr {
       <td class="status-warning">No</td>
       {% endif %}
     </tr>
+    <tr>
+      <th>Next Protocol Negotiation</th>
+      <td>
+      {% if features.next_protos %}
+        Yes, <code class="shadow">{{ features.next_protos|join(", ") }}</code>
+      {% else %}
+        No
+      {% endif %}
+      </td>
+    </tr>
+    <tr>
+      <th>Session resumption</th>
+      {% if features.session %}
+        {% if features.session_resumed %}
+      <td class="status-good">
+        Yes,
+        <span class="shadow">
+          {{ features.session_id|length }} byte Session ID was accepted
+        </span>
+        {% else %}
+      <td class="status-error standout">
+        No, Session ID assigned but not accepted
+        {% endif %}
+      {% else %}
+      No
+      {% endif %}
+      </td>
+    </tr>
+    <tr>
+      <th>Session tickets</th>
+      <td>
+      {% if features.session_ticket %}
+      Yes
+      {% else %}
+      No
+      {% endif %}
+      </td>
+    </tr>
+    <tr>
+      <th>Heartbeat</th>
+      <td>
+      {% if features.heartbeat %}
+      Yes
+      {% else %}
+      No
+      {% endif %}
+      </td>
+    </tr>
+    {% if features.elliptic_curves %}
+    <tr>
+      <th>Elliptic Curve</th>
+      <td>
+        Yes,
+        {% if features.elliptic_curves.curve_type == 'named_curve' %}
+        <code class="shadow">{{ features.elliptic_curves.curve_name|join(", ") }}</code>
+        {% else %}
+        {{ features.elliptic_curves.curve_type }} (but no named curves)
+        {% endif %}
+      </td>
+    </tr>
+    <tr>
+      <th>Elliptic Curve Point Formats</th>
+      <td>
+        Yes,
+        <code class="shadow">{{ features.elliptic_curves.point_format|join(", ") }}</code>
+      </td>
+    </tr>
+    {% else %}
+    <tr>
+      <th>Elliptic Curves</th>
+      <td>No</td>
+    </tr>
+    {% endif %}
   </table>
 
   <h2>

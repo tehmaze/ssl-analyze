@@ -2,11 +2,15 @@ import socket
 
 from ssl_analyze.probe.base import Probe
 from ssl_analyze.log import log
-from ssl_analyze.tls.connection import Connection
-from ssl_analyze.tls.parameters import CipherSuite
+from ssl_analyze.tls.parameters import (
+    CertificateStatusType,
+    CipherSuite,
+    TLS_EC_CURVE_NAME,
+    TLS_EC_POINT_FORMAT,
+)
 
 
-class CipherSupport(Probe):
+class FeatureSupport(Probe):
     def probe(self, address, certificates):
         if address is None:
             raise Probe.Skip('offline; no address supplied')
@@ -18,13 +22,6 @@ class CipherSupport(Probe):
             self._check_feature_session_resumption(address, support)
 
         self.merge(dict(analysis=dict(features=support)))
-
-    def _connect(self, address):
-        try:
-            remote = socket.create_connection(address)
-            return Connection(remote)
-        except socket.error as error:
-            raise Probe.Skip('network error: {}'.format(error))
 
     def _check_feature_session_resumption(self, address, support):
         log.debug('Testing session resumption')
@@ -54,20 +51,27 @@ class CipherSupport(Probe):
     def _check_features(self, address, support):
         log.debug('Testing features')
         secure = self._connect(address)
+        all_ciphers = [getattr(CipherSuite, suite)
+                       for suite in self.collected['ciphers']]
 
         try:
-            cipher = CipherSuite.filter(key_exchange=('RSA', 'DH'))
-            cipher.append(CipherSuite.TLS_EMPTY_RENEGOTIATION_INFO_SCSV)
             for result in secure.handshake(
                     server_name=address[0],
-                    cipher_suites=cipher,
+                    cipher_suites=all_ciphers,
                     compression_methods=[0, 1],
+                    heartbeat=True,
+                    supports_npn=True,
+                    status_request=CertificateStatusType.ocsp,
                 ):
                 pass
+
+            #import sys; sys.exit()
 
             # Test features from ServerHello report
             hello = secure.server_hello
             support['compression'] = hello.compression_method != 0
+            support['heartbeat'] = hello.heartbeat
+            support['next_protos'] = hello.next_protos
             support['secure_renegotiation'] = hello.secure_renegotiation
             support['session'] = bool(hello.session_id)
             if support['session']:
@@ -82,5 +86,5 @@ class CipherSupport(Probe):
 
 
 PROBES = (
-    CipherSupport,
+    FeatureSupport,
 )
